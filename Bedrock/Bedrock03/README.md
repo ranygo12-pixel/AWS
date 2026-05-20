@@ -30,4 +30,11 @@
 ```text
 ├── README.md
 └── Bedrock/
-    └── Bedrock03.ipynb     # AWS CLI 구성 및 Bedrock RAG 실습 노트북
+    ├── Bedrock03.ipynb     # AWS CLI 구성 및 Bedrock RAG 실습 노트북
+    ├── .env                  # 로컬 테스트용 환경 변수 파일 (Git 제외 대상)
+    ├── .gitignore            # Git에 올리지 않을 파일 설정 (.env, __pycache__ 등)
+    ├── requirements.txt      # 설치가 필요한 라이브러리 목록
+    ├── config.py             # AWS 및 환경 변수 설정 로드
+    ├── bedrock_utils.py      # Bedrock 호출 및 임베딩 관련 함수 모음
+    ├── s3_utils.py           # S3 버킷 생성 및 메타데이터 업로드 함수 모음
+    └── main.py               # 전체 프로세스를 실행하는 메인 스크립트
