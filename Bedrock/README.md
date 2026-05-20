@@ -2,14 +2,20 @@
 
 이 저장소는 Amazon Bedrock과 인프라 자동화 도구를 활용하여 검색 증강 생성(RAG, Retrieval-Augmented Generation) 시스템을 이해하고, 효율적인 지식 기반(Knowledge Base)을 설계 및 구축하는 실습 코드를 담고 있습니다.
 
+
+
+
 ## 📌 프로젝트 개요
 * **목적**: 대규모 언어 모델(LLM)의 할루시네이션(Hallucination) 문제를 해결하고, 최신 기업 내부 데이터에 기반한 답변을 제공하는 RAG 아키텍처 실습
 * **핵심 기술**: Amazon Bedrock, Vector Databases (OpenSearch, Pinecone 등), 데이터 전처리 파이프라인
 * **실습 환경**: Google Colab / AWS 환경 (AWS CLI, SDK 기반 제어)
 
+  
+
 ---
 
 ## 🛠️ 실습 내용 및 아키텍처
+
 
 ### 1. AWS CLI 및 개발 환경 설정 (`Bedrock03.ipynb`)
 * **AWS CLI v2 설치 및 업데이트**: 최신 AWS CLI를 환경에 맞춰 자동 구성하는 쉘 스크립트 실행
@@ -19,6 +25,8 @@
 * **Data Ingestion**: 문서 데이터 수집 및 텍스트 청킹(Chunking) 전략 수립
 * **Embedding**: 고성능 Embedding 모델을 활용한 텍스트의 벡터화 변환
 * **Vector Store 저장**: 유사도 검색(Similarity Search) 최적화를 위한 지식 기반 구축
+
+
 
 ---
 
