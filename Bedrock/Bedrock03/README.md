@@ -35,6 +35,8 @@
     ├── .gitignore            # Git에 올리지 않을 파일 설정 (.env, __pycache__ 등)
     ├── requirements.txt      # 설치가 필요한 라이브러리 목록
     ├── config.py             # AWS 및 환경 변수 설정 로드
-    ├── bedrock_utils.py      # Bedrock 호출 및 임베딩 관련 함수 모음
+    ├── bedrock_embedding.py   # 1. 텍스트를 벡터로 변환하는 기능
+    ├── vector_math.py         # 2. 벡터 간 유사도를 계산하는 수학 함수
+    ├── bedrock_kb.py          # 3. Knowledge Base 동기화 및 Retrieval/QA 기능
     ├── s3_utils.py           # S3 버킷 생성 및 메타데이터 업로드 함수 모음
     └── main.py               # 전체 프로세스를 실행하는 메인 스크립트
