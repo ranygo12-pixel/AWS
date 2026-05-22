@@ -17,21 +17,22 @@ Amazon Bedrock Knowledge Base와 Claude 3.5 Sonnet(v4.6)을 결합하여, 소스
 ## 🚀 3. 시작하기 (Quick Start)
 환경 변수 설정: 보안을 위해 AWS Access Key와 Knowledge Base ID는 코드에 박아두지 않고 환경 변수를 통해 주입받습니다. git의 경우, secret 에 저장합니다.
 
-(Linux / macOS 터미널 환경 환경 변수 주입 명령어)
+* Linux / macOS 터미널 환경 환경 변수 주입 명령어
 ```
 export AWS_ACCESS_KEY_ID="당신의_AWS_액세스_키"
 export AWS_SECRET_ACCESS_KEY="당신의_AWS_시크릿_키"
 export AWS_DEFAULT_REGION="ap-northeast-2"
 export KB_ID="당신의_지식_기반_ID"
 ```
+
+* Windows PowerShell 환경 변수 주입 명령어
 ```
-(Windows PowerShell 환경 변수 주입 명령어)
 $env:AWS_ACCESS_KEY_ID="당신의_AWS_액세스_키"
 $env:AWS_SECRET_ACCESS_KEY="당신의_AWS_시크릿_키"
 $env:AWS_DEFAULT_REGION="ap-northeast-2"
 $env:KB_ID="당신의_지식_기반_ID"
 ```
-Google Colab 가동 시: 좌측 열쇠 아이콘(Secrets)에 AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, KB_ID를 각각 Key로 등록하고 값(Value)을 입력하면, config.py가 이를 인지하여 자동으로 환경 변수에 병합합니다.
+* Google Colab 가동 시: 좌측 열쇠 아이콘(Secrets)에 AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, KB_ID를 각각 Key로 등록하고 값(Value)을 입력하면, config.py가 이를 인지하여 자동으로 환경 변수에 병합합니다.
 
 의존성 패키지 설치 및 실행 방법:
 pip install boto3
