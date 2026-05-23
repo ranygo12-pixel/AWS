@@ -5,7 +5,7 @@
 ## 프로젝트 구조
 
 ```
-codebuddy/
+
 ├── config/
 │   └── settings.py          # 환경 변수 및 설정값
 ├── agent/
