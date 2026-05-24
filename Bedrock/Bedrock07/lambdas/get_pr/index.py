@@ -1,7 +1,7 @@
 """
-Lambda 함수: GitHub Pull Request에 댓글 추가
+Lambda 함수: GitHub Pull Request 정보 조회
 - Bedrock Agent Action Group에서 호출됨
-- PyGithub를 사용하여 PR에 이슈 댓글 생성
+- PyGithub를 사용하여 PR 상세 정보 반환
 """
 import json
 import os
@@ -22,24 +22,27 @@ def handler(event, context):
         owner = parameters.get("owner")
         repo_name = parameters.get("repo")
         pr_number = parameters.get("pr_number")
-        comment = parameters.get("comment")
 
         # 필수 파라미터 검증
-        if not all([owner, repo_name, pr_number, comment]):
-            raise ValueError("Missing required parameters: owner, repo, pr_number, comment")
+        if not all([owner, repo_name, pr_number]):
+            raise ValueError("Missing required parameters: owner, repo, pr_number")
 
         # GitHub API 호출
         g = Github(os.environ["GITHUB_TOKEN"])
         repo = g.get_repo(f"{owner}/{repo_name}")
         pr = repo.get_pull(int(pr_number))
-        created_comment = pr.create_issue_comment(comment)
 
         response_body = {
-            "success": True,
-            "message": f"Comment added to PR #{pr_number}",
-            "comment_id": created_comment.id,
-            "comment_url": created_comment.html_url,
-            "pr_url": pr.html_url,
+            "title": pr.title,
+            "body": pr.body or "",
+            "state": pr.state,
+            "author": pr.user.login,
+            "created_at": pr.created_at.isoformat(),
+            "updated_at": pr.updated_at.isoformat(),
+            "changed_files": pr.changed_files,
+            "additions": pr.additions,
+            "deletions": pr.deletions,
+            "diff_url": pr.diff_url,
         }
 
         return _build_success_response(event, response_body)
@@ -47,7 +50,7 @@ def handler(event, context):
     except GithubException as e:
         logger.error(f"GitHub API error: {e}")
         return _build_error_response(
-            event, f"GitHub API error: {e.data.get('message', str(e))}", 400
+            event, f"GitHub API error: {e.data.get('message', str(e))}", 404
         )
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
