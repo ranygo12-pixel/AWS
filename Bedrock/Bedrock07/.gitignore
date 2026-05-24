@@ -1,0 +1,44 @@
+# 환경 변수 / 시크릿
+.env
+.env.*
+!.env.example
+
+# AWS 자격증명
+.aws/
+credentials
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+
+# 가상환경
+.venv/
+venv/
+env/
+ENV/
+
+# Lambda 빌드 산출물
+lambdas/**/package/
+lambdas/**/*.zip
+/tmp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# 테스트 / 커버리지
+.pytest_cache/
+.coverage
+htmlcov/
