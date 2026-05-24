@@ -1,0 +1,42 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Slack Notifier",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/slack/send": {
+      "post": {
+        "operationId": "send_slack_message",
+        "summary": "Send a message to Slack",
+        "description": "Sends a message to a Slack channel or direct message. Use this to notify team members about completed tasks, code review results, or any alerts.",
+        "parameters": [
+          {
+            "name": "channel",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Slack channel name (e.g. '#code-review') or user ID"
+          },
+          {
+            "name": "message",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The message text to send to Slack"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Message sent successfully",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
