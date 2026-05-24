@@ -1,0 +1,56 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "GitHub PR Comment",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/pr/comment": {
+      "post": {
+        "operationId": "post_pr_comment",
+        "summary": "Add a comment to a Pull Request",
+        "description": "Adds a comment to a specific GitHub Pull Request. Use this when the user wants to leave feedback, approval, or questions on a PR.",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "GitHub repository owner or organization"
+          },
+          {
+            "name": "repo",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "GitHub repository name"
+          },
+          {
+            "name": "pr_number",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "Pull Request number"
+          },
+          {
+            "name": "comment",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The comment text to post on the Pull Request"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comment added successfully",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
