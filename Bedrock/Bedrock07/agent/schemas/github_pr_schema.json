@@ -1,0 +1,49 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "GitHub PR Viewer",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/pr": {
+      "get": {
+        "operationId": "get_github_pr",
+        "summary": "Get GitHub Pull Request details",
+        "description": "Retrieves detailed information about a specific GitHub Pull Request. Use this when the user asks about PR details, wants to review a PR, or needs to analyze code changes in a pull request.",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The GitHub repository owner or organization name (e.g. 'aws-samples', 'facebook')"
+          },
+          {
+            "name": "repo",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "The GitHub repository name (e.g. 'amazon-bedrock-samples')"
+          },
+          {
+            "name": "pr_number",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "integer" },
+            "description": "The Pull Request number to retrieve"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "PR details retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
