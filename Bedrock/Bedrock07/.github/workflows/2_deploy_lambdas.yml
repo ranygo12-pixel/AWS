@@ -1,0 +1,60 @@
+name: "2️⃣  Lambda 함수 배포"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "lambdas/**"          # Lambda 코드 변경 시 자동 배포
+  workflow_dispatch:           # 수동 실행
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-lambdas:
+    name: Lambda 빌드 및 배포
+    runs-on: ubuntu-latest
+
+    outputs:
+      codebuddy_github_pr_arn: ${{ steps.deploy.outputs.codebuddy_github_pr_arn }}
+      codebuddy_github_pr_comment_arn: ${{ steps.deploy.outputs.codebuddy_github_pr_comment_arn }}
+      codebuddy_slack_notifier_arn: ${{ steps.deploy.outputs.codebuddy_slack_notifier_arn }}
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 빌드 의존 패키지 설치
+        run: pip install boto3
+
+      - name: AWS 자격증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      - name: Lambda 함수 배포
+        id: deploy
+        env:
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          LAMBDA_ROLE_ARN: ${{ secrets.LAMBDA_ROLE_ARN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}          # GH_TOKEN: GitHub PAT (GITHUB_TOKEN과 이름 충돌 방지)
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          AGENT_ID: ${{ secrets.AGENT_ID }}              # 선택: 권한 추가용 (첫 배포 시 비워도 무방)
+        run: python scripts/deploy_lambdas.py
+
+      - name: 결과 요약
+        run: |
+          echo "## ✅ Lambda 배포 완료" >> $GITHUB_STEP_SUMMARY
+          echo "| 함수 | ARN |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| codebuddy-github-pr | ${{ steps.deploy.outputs.codebuddy_github_pr_arn }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| codebuddy-github-pr-comment | ${{ steps.deploy.outputs.codebuddy_github_pr_comment_arn }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| codebuddy-slack-notifier | ${{ steps.deploy.outputs.codebuddy_slack_notifier_arn }} |" >> $GITHUB_STEP_SUMMARY
