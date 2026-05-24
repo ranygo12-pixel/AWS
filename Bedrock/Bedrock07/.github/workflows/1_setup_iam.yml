@@ -1,124 +1,43 @@
-"""
-scripts/setup_iam.py
-IAM 역할 생성 스크립트
-- Lambda 실행 역할 생성
-- Bedrock Agent 실행 역할 생성
-"""
-import boto3
-import json
-import sys
-import botocore.exceptions
+name: "1️⃣  IAM 역할 설정"
 
-REGION = "ap-northeast-2"
+on:
+  workflow_dispatch:   # 수동 실행 전용 (최초 1회)
 
-iam = boto3.client("iam")
-sts = boto3.client("sts")
+permissions:
+  id-token: write
+  contents: read
 
-ACCOUNT_ID = sts.get_caller_identity()["Account"]
+jobs:
+  setup-iam:
+    name: IAM 역할 생성
+    runs-on: ubuntu-latest
 
-# ── Lambda 실행 역할 ──────────────────────────────────────────────────
-LAMBDA_ROLE_NAME = "CodeBuddy-Lambda-Role"
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
 
-LAMBDA_TRUST_POLICY = {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {"Service": "lambda.amazonaws.com"},
-            "Action": "sts:AssumeRole",
-        }
-    ],
-}
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-# ── Bedrock Agent 실행 역할 ───────────────────────────────────────────
-AGENT_ROLE_NAME = "CodeBuddy-BedrockAgent-Role"
+      - name: 의존 패키지 설치
+        run: pip install boto3
 
-AGENT_TRUST_POLICY = {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {"Service": "bedrock.amazonaws.com"},
-            "Action": "sts:AssumeRole",
-        }
-    ],
-}
+      - name: AWS 자격증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
-AGENT_INLINE_POLICY = {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": ["bedrock:InvokeModel"],
-            "Resource": f"arn:aws:bedrock:{REGION}::foundation-model/*",
-        },
-        {
-            "Effect": "Allow",
-            "Action": ["lambda:InvokeFunction"],
-            "Resource": f"arn:aws:lambda:{REGION}:{ACCOUNT_ID}:function:codebuddy-*",
-        },
-    ],
-}
+      - name: IAM 역할 생성
+        run: python scripts/setup_iam.py
 
-
-def create_or_get_role(role_name: str, trust_policy: dict) -> str:
-    """역할 생성 또는 기존 역할 ARN 반환"""
-    try:
-        role = iam.create_role(
-            RoleName=role_name,
-            AssumeRolePolicyDocument=json.dumps(trust_policy),
-        )
-        print(f"  ✅ 역할 생성: {role_name}")
-        return role["Role"]["Arn"]
-    except botocore.exceptions.ClientError as e:
-        if e.response["Error"]["Code"] == "EntityAlreadyExists":
-            arn = f"arn:aws:iam::{ACCOUNT_ID}:role/{role_name}"
-            print(f"  ⚠️  기존 역할 사용: {role_name}")
-            return arn
-        raise
-
-
-def setup_lambda_role() -> str:
-    print("\n[1/2] Lambda 실행 역할 설정 중...")
-    arn = create_or_get_role(LAMBDA_ROLE_NAME, LAMBDA_TRUST_POLICY)
-
-    # CloudWatch Logs 권한 부착
-    iam.attach_role_policy(
-        RoleName=LAMBDA_ROLE_NAME,
-        PolicyArn="arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-    )
-    print(f"  ✅ Lambda 역할 ARN: {arn}")
-    return arn
-
-
-def setup_agent_role() -> str:
-    print("\n[2/2] Bedrock Agent 실행 역할 설정 중...")
-    arn = create_or_get_role(AGENT_ROLE_NAME, AGENT_TRUST_POLICY)
-
-    # 인라인 정책 추가
-    iam.put_role_policy(
-        RoleName=AGENT_ROLE_NAME,
-        PolicyName="CodeBuddy-AgentPolicy",
-        PolicyDocument=json.dumps(AGENT_INLINE_POLICY),
-    )
-    print(f"  ✅ Agent 역할 ARN: {arn}")
-    return arn
-
-
-def main():
-    print("=" * 50)
-    print("  CodeBuddy IAM 역할 설정")
-    print("=" * 50)
-
-    lambda_role_arn = setup_lambda_role()
-    agent_role_arn = setup_agent_role()
-
-    print("\n" + "=" * 50)
-    print("설정 완료! 아래 값을 GitHub Secrets에 저장하세요:")
-    print(f"  LAMBDA_ROLE_ARN  = {lambda_role_arn}")
-    print(f"  AGENT_ROLE_ARN   = {agent_role_arn}")
-    print("=" * 50)
-
-
-if __name__ == "__main__":
-    main()
+      # 출력된 ARN을 Job Summary에 기록 (GitHub Secrets에 수동 등록 필요)
+      - name: 결과 요약
+        run: |
+          echo "## ✅ IAM 설정 완료" >> $GITHUB_STEP_SUMMARY
+          echo "스크립트 출력에서 ARN 값을 복사하여 아래 GitHub Secrets를 등록하세요:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`LAMBDA_ROLE_ARN\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`AGENT_ROLE_ARN\`" >> $GITHUB_STEP_SUMMARY
