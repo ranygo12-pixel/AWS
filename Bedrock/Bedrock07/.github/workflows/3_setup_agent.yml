@@ -1,0 +1,99 @@
+name: "3️⃣  Agent 설정 및 테스트"
+
+on:
+  workflow_run:
+    workflows: ["2️⃣  Lambda 함수 배포"]
+    types: [completed]           # Lambda 배포 완료 후 자동 실행
+  workflow_dispatch:             # 수동 실행
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  setup-agent:
+    name: Bedrock Agent 설정
+    runs-on: ubuntu-latest
+    # Lambda 배포가 성공했을 때만 실행 (workflow_run 트리거 시)
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    outputs:
+      agent_id: ${{ steps.setup.outputs.agent_id }}
+      alias_id: ${{ steps.setup.outputs.alias_id }}
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 의존 패키지 설치
+        run: pip install boto3
+
+      - name: AWS 자격증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      - name: Bedrock Agent 설정
+        id: setup
+        env:
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AGENT_ROLE_ARN: ${{ secrets.AGENT_ROLE_ARN }}
+          CODEBUDDY_GITHUB_PR_ARN: ${{ secrets.CODEBUDDY_GITHUB_PR_ARN }}
+          CODEBUDDY_GITHUB_PR_COMMENT_ARN: ${{ secrets.CODEBUDDY_GITHUB_PR_COMMENT_ARN }}
+          CODEBUDDY_SLACK_NOTIFIER_ARN: ${{ secrets.CODEBUDDY_SLACK_NOTIFIER_ARN }}
+          AGENT_ID: ${{ secrets.AGENT_ID }}              # 선택: 기존 Agent 재사용
+          AGENT_ALIAS_ID: ${{ secrets.AGENT_ALIAS_ID }}  # 선택: 기존 Alias 재사용
+        run: python scripts/setup_agent.py
+
+      - name: 결과 요약
+        run: |
+          echo "## ✅ Agent 설정 완료" >> $GITHUB_STEP_SUMMARY
+          echo "- **Agent ID**: ${{ steps.setup.outputs.agent_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Alias ID**: ${{ steps.setup.outputs.alias_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ 최초 실행 시 위 값을 GitHub Secrets에 등록하세요:" >> $GITHUB_STEP_SUMMARY
+          echo "\`AGENT_ID\`, \`AGENT_ALIAS_ID\`" >> $GITHUB_STEP_SUMMARY
+
+  test-agent:
+    name: 통합 테스트
+    runs-on: ubuntu-latest
+    needs: setup-agent
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 의존 패키지 설치
+        run: pip install boto3
+
+      - name: AWS 자격증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+
+      - name: 통합 테스트 실행
+        env:
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AGENT_ID: ${{ needs.setup-agent.outputs.agent_id || secrets.AGENT_ID }}
+          AGENT_ALIAS_ID: ${{ needs.setup-agent.outputs.alias_id || secrets.AGENT_ALIAS_ID }}
+        run: python scripts/test_agent.py
+
+      - name: 테스트 결과 요약
+        if: always()
+        run: |
+          echo "## 🧪 테스트 결과" >> $GITHUB_STEP_SUMMARY
+          echo "테스트 로그는 위 스텝에서 확인하세요." >> $GITHUB_STEP_SUMMARY
