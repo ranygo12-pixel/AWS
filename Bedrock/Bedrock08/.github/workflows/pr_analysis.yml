@@ -1,0 +1,201 @@
+# .github/workflows/pr_analysis.yml
+#
+# Bing Code: GitHub PR 자동 리뷰 워크플로우
+# ==========================================
+# [트리거]
+#   - PR이 열리거나(opened) 새 커밋이 푸시될 때(synchronize) 자동 실행
+#   - Actions 탭에서 수동으로도 실행 가능 (workflow_dispatch)
+#
+# [실행 단계]
+#   1. 테스트 (pytest)          → 코드 품질 확인
+#   2. PR 분석 (Bedrock Agent)  → 복잡도·리팩토링·테스트 자동 생성 + PR 댓글 등록
+#
+# [필요한 GitHub Secrets]
+#   AWS_ACCESS_KEY_ID      : Bedrock + Lambda 접근 IAM 키
+#   AWS_SECRET_ACCESS_KEY  : 위 키의 시크릿
+#   BEDROCK_AGENT_ID       : Amazon Bedrock Agent ID
+#   BEDROCK_AGENT_ALIAS    : Amazon Bedrock Agent Alias ID
+#   GITHUB_TOKEN           : PR 댓글 등록용 (자동 제공, 별도 설정 불필요)
+
+name: Bing Code PR Analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "분석할 PR 번호"
+        required: true
+        type: number
+      owner:
+        description: "저장소 소유자 (기본값: 현재 저장소)"
+        required: false
+        type: string
+      repo:
+        description: "저장소 이름 (기본값: 현재 저장소)"
+        required: false
+        type: string
+
+# PR마다 하나의 분석만 동시에 실행 (이전 실행 자동 취소)
+concurrency:
+  group: bing-code-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 1: 단위 테스트
+  # ──────────────────────────────────────────────────────────────────────────
+  test:
+    name: "🧪 Run Unit Tests"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v \
+            --cov=tools \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            -p no:warnings
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 2: Bedrock Agent PR 분석
+  # ──────────────────────────────────────────────────────────────────────────
+  analyze:
+    name: "🤖 Bedrock Agent PR Analysis"
+    runs-on: ubuntu-latest
+    needs: test                        # 테스트 통과 후에만 실행
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch'
+
+    permissions:
+      pull-requests: write             # PR 댓글 등록 권한
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ap-northeast-2
+
+      # PR 번호 결정: pull_request 이벤트면 자동, workflow_dispatch면 입력값 사용
+      - name: Resolve PR number and repo info
+        id: pr_info
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "owner=${{ github.repository_owner }}"             >> $GITHUB_OUTPUT
+            echo "repo=${{ github.event.repository.name }}"         >> $GITHUB_OUTPUT
+          else
+            OWNER="${{ inputs.owner || github.repository_owner }}"
+            REPO="${{ inputs.repo   || github.event.repository.name }}"
+            echo "pr_number=${{ inputs.pr_number }}" >> $GITHUB_OUTPUT
+            echo "owner=${OWNER}"                    >> $GITHUB_OUTPUT
+            echo "repo=${REPO}"                      >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Bing Code PR Analysis
+        env:
+          GITHUB_TOKEN:        ${{ secrets.GITHUB_TOKEN }}
+          BEDROCK_AGENT_ID:    ${{ secrets.BEDROCK_AGENT_ID }}
+          BEDROCK_AGENT_ALIAS: ${{ secrets.BEDROCK_AGENT_ALIAS }}
+        run: |
+          python agent/bedrock_agent.py analyze \
+            --agent-id   "$BEDROCK_AGENT_ID"    \
+            --alias-id   "$BEDROCK_AGENT_ALIAS" \
+            --owner      "${{ steps.pr_info.outputs.owner }}"     \
+            --repo       "${{ steps.pr_info.outputs.repo }}"      \
+            --pr-number  "${{ steps.pr_info.outputs.pr_number }}"
+
+      - name: Post failure comment on error
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: ${{ steps.pr_info.outputs.pr_number }},
+              owner: '${{ steps.pr_info.outputs.owner }}',
+              repo:  '${{ steps.pr_info.outputs.repo }}',
+              body:  '⚠️ **Bing Code 분석 실패**\nActions 로그를 확인해주세요: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+            })
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Job 3: Action Group 설정 업데이트 (수동 트리거 전용)
+  # ──────────────────────────────────────────────────────────────────────────
+  setup-agent:
+    name: "⚙️ Setup Bedrock Action Group"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ap-northeast-2
+
+      - name: Update Action Group schema
+        env:
+          BEDROCK_AGENT_ID:     ${{ secrets.BEDROCK_AGENT_ID }}
+          BEDROCK_ACTION_GROUP: ${{ secrets.BEDROCK_ACTION_GROUP }}
+          UNIFIED_LAMBDA_ARN:   ${{ secrets.UNIFIED_LAMBDA_ARN }}
+        run: |
+          python agent/bedrock_agent.py setup \
+            --agent-id        "$BEDROCK_AGENT_ID"     \
+            --action-group-id "$BEDROCK_ACTION_GROUP" \
+            --lambda-arn      "$UNIFIED_LAMBDA_ARN"
