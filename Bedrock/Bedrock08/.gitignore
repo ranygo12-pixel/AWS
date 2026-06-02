@@ -1,0 +1,84 @@
+# ──────────────────────────────────────────────────
+# Bing Code .gitignore
+# ──────────────────────────────────────────────────
+
+# ── Python ──────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.installed.cfg
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.manifest
+*.spec
+MANIFEST
+
+# ── 가상환경 ──────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env
+
+# ── 환경변수 / 시크릿 (절대 커밋 금지) ───────────
+.env
+.env.*
+*.env
+secrets.json
+credentials.json
+*_credentials.json
+
+# ── AWS ──────────────────────────────────────────
+.aws/
+aws-exports.js
+sam-app/.aws-sam/
+.aws-sam/
+samconfig.toml
+packaged.yaml
+
+# ── 테스트 / 커버리지 ─────────────────────────────
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+nosetests.xml
+test-results/
+
+# ── IDE / 에디터 ──────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Jupyter / Colab ───────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── 로그 ──────────────────────────────────────────
+*.log
+logs/
+*.out
+
+# ── Lambda 배포 패키지 ────────────────────────────
+lambda_package/
+*.zip
+layer/
+
+# ── 기타 ──────────────────────────────────────────
+*.bak
+*.tmp
