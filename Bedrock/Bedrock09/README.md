@@ -51,7 +51,7 @@ Bedrock    CloudWatch
 ## 설치
 
 ```bash
-git clone https://github.com/your-org/codeb
+git clone https://github.com/your-org/
 cd codebuddy
 
 python -m venv .venv
