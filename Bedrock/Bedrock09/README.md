@@ -51,8 +51,8 @@ Bedrock    CloudWatch
 ## 설치
 
 ```bash
-git clone https://github.com/your-org/
-cd codebuddy
+git clone https://github.com/your-org/repository-name
+cd 레포지스트리
 
 python -m venv .venv
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
