@@ -1,4 +1,4 @@
-# CodeBuddy — GitHub PR 자동 리뷰 Agent
+# GitHub PR 자동 리뷰 Agent
 
 AWS Bedrock Agent를 Lambda + API Gateway로 서버리스 배포하여  
 GitHub Pull Request를 자동으로 리뷰하는 프로젝트입니다.
