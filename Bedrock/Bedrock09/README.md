@@ -26,7 +26,7 @@ Bedrock    CloudWatch
 ## 프로젝트 구조
 
 ```
-codebu
+codeb
 ├── lambda/
 │   └── orchestrator.py        # Lambda 핸들러 (Bedrock Agent 호출)
 ├── scripts/
