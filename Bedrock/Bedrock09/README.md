@@ -52,7 +52,7 @@ Bedrock    CloudWatch
 
 ```bash
 git clone https://github.com/your-org/repository-name
-cd 레포지스트리
+cd repository-name
 
 python -m venv .venv
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
