@@ -83,7 +83,7 @@ build_and_deploy() {
   else
     # 신규 생성
     echo "   🆕 Lambda 함수 신규 생성 중..."
-    local role_arn="arn:aws:iam::${ACCOUNT_ID}:role/jaredai-lambda-role"
+    local role_arn="arn:aws:iam::${ACCOUNT_ID}:role/JaredAILambdaRole"
 
     aws lambda create-function \
       --function-name "$func_name" \
