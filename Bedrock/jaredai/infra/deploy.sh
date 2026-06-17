@@ -111,36 +111,34 @@ update_env_vars() {
   local func_name="$1"
   local ENV_VARS=""
 
-  # 함수별 환경변수 선택
+  # 확인용 코드 (디버깅 시 사용)
+  echo "DEBUG: func_name is $func_name"
+  echo "DEBUG: ENV_VARS is '$ENV_VARS'"
+
   case "$func_name" in
     *orchestrator*)
-      # Secrets에 해당 변수들이 없으므로 삭제하거나, 
-      # 필요한 경우 Secrets에 추가한 후 아래에 명시해야 합니다.
       ENV_VARS="AWS_REGION=ap-northeast-2"
       ;;
     *jira*)
-      # JIRA_BASE_URL은 JIRA_INSTANCE_URL로 수정
-      # 프로젝트 키나 이메일이 Secrets에 없다면 삭제
-      ENV_VARS="JIRA_BASE_URL=${JIRA_INSTANCE_URL},\
-JIRA_API_TOKEN=${JIRA_API_TOKEN}"
+      # 줄 바꿈 없이 한 줄로 작성
+      ENV_VARS="JIRA_BASE_URL=${JIRA_INSTANCE_URL},JIRA_API_TOKEN=${JIRA_API_TOKEN}"
       ;;
     *github*)
       ENV_VARS="GITHUB_TOKEN=${JARED_GITHUB_PAT}"
       ;;
     *slack*)
-      # SLACK_BOT_TOKEN, CHANNEL이 Secrets에 없으므로 주석 처리
-      # 만약 SLACK_WEBHOOK_URL만 있다면 그것만 사용
       ENV_VARS="SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}"
       ;;
   esac
 
   if [ -n "$ENV_VARS" ]; then
+    echo "    🔄 환경변수 업데이트 중: $ENV_VARS"
     aws lambda update-function-configuration \
       --function-name "$func_name" \
-      --environment "Variables={${ENV_VARS}}" \
+      --environment "Variables={$ENV_VARS}" \
       --region "$REGION" \
       --output json > /dev/null
-    echo "   ✓ 환경변수 업데이트 완료"
+    echo "    ✓ 환경변수 업데이트 완료"
   fi
 }
 
