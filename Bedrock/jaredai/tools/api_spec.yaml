@@ -60,6 +60,15 @@ paths:
                     description: 처리 결과 (success / error)
         "500":
           description: Jira 티켓 생성 실패
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  error:
+                    type: string
 
   /post_github_comment:
     post:
@@ -110,6 +119,15 @@ paths:
                     type: string
         "500":
           description: GitHub 댓글 등록 실패
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  error:
+                    type: string
 
   /send_slack_notification:
     post:
@@ -163,3 +181,12 @@ paths:
                     description: Slack 메시지 타임스탬프 (추적용)
         "500":
           description: Slack 알림 전송 실패
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  error:
+                    type: string
