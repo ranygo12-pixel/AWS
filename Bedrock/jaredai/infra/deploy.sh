@@ -57,9 +57,6 @@ build_and_deploy() {
   # Lambda 소스 복사
   cp "lambdas/${filename}.py" "${tmp_dir}/lambda_function.py"
 
-  # 외부 의존성 없음 (urllib 사용으로 경량화)
-  # 필요 시 pip install -r requirements.txt -t "$tmp_dir" 활성화
-
   # ZIP 패키징
   cd "$tmp_dir"
   zip -r "../../${zip_path}" . -x "*.pyc" "__pycache__/*" > /dev/null
@@ -174,5 +171,5 @@ echo "✅ 모든 배포 완료!"
 echo ""
 echo "다음 단계:"
 echo "  1. python infra/bedrock_agent_setup.py  ← Agent + KB 설정"
-echo "  2. GitHub Webhook URL 설정              ← API Gateway URL"
+echo "  2. GitHub Webhook URL 설정               ← API Gateway URL"
 echo "======================================================"
