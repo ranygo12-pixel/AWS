@@ -1,1 +1,6 @@
-ㅇ
+# JaredAI 의존성
+# Lambda 함수들은 urllib만 사용 (외부 의존성 없음)
+# 아래는 로컬 개발 및 infra/bedrock_agent_setup.py 실행용
+
+boto3>=1.34.0
+python-dotenv>=1.0.0
