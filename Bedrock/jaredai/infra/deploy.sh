@@ -113,25 +113,23 @@ update_env_vars() {
   # 함수별 환경변수 선택
   case "$func_name" in
     *orchestrator*)
-      ENV_VARS="GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET},\
-BEDROCK_AGENT_ID=${BEDROCK_AGENT_ID},\
-BEDROCK_AGENT_ALIAS=${BEDROCK_AGENT_ALIAS},\
-AWS_REGION=${AWS_REGION}"
+      # Secrets에 해당 변수들이 없으므로 삭제하거나, 
+      # 필요한 경우 Secrets에 추가한 후 아래에 명시해야 합니다.
+      ENV_VARS="AWS_REGION=ap-northeast-2"
       ;;
     *jira*)
-      ENV_VARS="JIRA_BASE_URL=${JIRA_BASE_URL},\
-JIRA_PROJECT_KEY=${JIRA_PROJECT_KEY},\
-JIRA_USER_EMAIL=${JIRA_USER_EMAIL},\
+      # JIRA_BASE_URL은 JIRA_INSTANCE_URL로 수정
+      # 프로젝트 키나 이메일이 Secrets에 없다면 삭제
+      ENV_VARS="JIRA_BASE_URL=${JIRA_INSTANCE_URL},\
 JIRA_API_TOKEN=${JIRA_API_TOKEN}"
       ;;
     *github*)
-      ENV_VARS="GITHUB_TOKEN=${GITHUB_TOKEN},\
-GITHUB_REPO_OWNER=${GITHUB_REPO_OWNER},\
-GITHUB_REPO_NAME=${GITHUB_REPO_NAME}"
+      ENV_VARS="GITHUB_TOKEN=${JARED_GITHUB_PAT}"
       ;;
     *slack*)
-      ENV_VARS="SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN},\
-SLACK_CHANNEL=${SLACK_CHANNEL}"
+      # SLACK_BOT_TOKEN, CHANNEL이 Secrets에 없으므로 주석 처리
+      # 만약 SLACK_WEBHOOK_URL만 있다면 그것만 사용
+      ENV_VARS="SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}"
       ;;
   esac
 
