@@ -166,7 +166,55 @@ def create_knowledge_base() -> str:
                     return kb['knowledgeBaseId']
         raise
         
-# ── 2단계: S3 데이터 소스 연결 ────────────────────────────────────────────
+# ── 2단계: Data Source 생성 또는 기존 리소스 연동 ────────────────────────────────────────────
+def create_data_source(kb_id: str) -> str:
+    print("\n[2/7] Data Source 확인 및 생성 프로세스 시작...")
+
+    # 💡 요청하신 새로운 Data Source 이름으로 지정합니다.
+    DATA_SOURCE_NAME = "jaredai-kb-926442180845"
+
+    # 1. 🔍 이 Knowledge Base에 이미 연결된 동일한 이름의 Data Source가 있는지 조회합니다.
+    try:
+        paginator = bedrock_agent.get_paginator('list_data_sources')
+        for page in paginator.paginate(knowledgeBaseId=kb_id):
+            for ds in page.get('dataSourceSummaries', []):
+                if ds['name'] == DATA_SOURCE_NAME:
+                    existing_ds_id = ds['dataSourceId']
+                    print(f"   ℹ️  이미 존재하는 Data Source를 발견했습니다. (이름: {DATA_SOURCE_NAME}, ID: {existing_ds_id})")
+                    print("   ✓ 기존 Data Source 리소스를 연동하여 다음 단계를 진행합니다.")
+                    return existing_ds_id
+    except Exception as e:
+        print(f"   ⚠️  기존 Data Source 목록을 조회하는 중 오류 발생(무시하고 생성을 시도합니다): {e}")
+
+    # 2. ✨ 목록에 없다면 새로 생성을 시도합니다.
+    print(f"   🆕  {DATA_SOURCE_NAME} 리소스가 없으므로 새로 생성을 시도합니다...")
+    try:
+        response = bedrock_agent.create_data_source(
+            knowledgeBaseId=kb_id,
+            name=DATA_SOURCE_NAME,  # 💡 이름 변경 완료
+            description="JaredAI용 S3 문서 소스 연동",
+            dataSourceConfiguration={
+                "type": "S3",
+                "s3DataSourceConfiguration": {
+                    "bucketArn": f"arn:aws:s3:::{S3_BUCKET_NAME}",
+                    # 필요 시 특정 폴더 지정이 되어 있다면 아래 주석을 풀고 사용하세요
+                    # "inclusionPrefixes": ["documents/"] 
+                }
+            }
+        )
+        ds_id = response["dataSource"]["dataSourceId"]
+        print(f"   ✓ Data Source 새로 생성 완료: {ds_id}")
+        return ds_id
+
+    except bedrock_agent.exceptions.ConflictException:
+        # 혹시 모를 동시 요청 충돌 시 안전하게 ID를 다시 낚아채는 예외 처리
+        print(f"   ℹ️  생성 중 충돌 발생: {DATA_SOURCE_NAME}이 이미 존재하므로 ID를 다시 조회합니다.")
+        pages = bedrock_agent.get_paginator('list_data_sources').paginate(knowledgeBaseId=kb_id)
+        for page in pages:
+            for ds in page.get('dataSourceSummaries', []):
+                if ds['name'] == DATA_SOURCE_NAME:
+                    return ds['dataSourceId']
+        raise# ── 2단계: S3 데이터 소스 연결 ────────────────────────────────────────────
 def create_data_source(kb_id: str) -> str:
     print("\n[2/7] S3 데이터 소스 연결 중...")
 
