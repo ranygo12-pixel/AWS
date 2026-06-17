@@ -13,8 +13,7 @@ if [ -f .env ]; then
   export $(grep -v '^#' .env | xargs)
   echo "✓ .env 로드 완료"
 else
-  echo "❌ .env 파일이 없습니다. .env.example을 복사하고 값을 채워주세요."
-  exit 1
+  echo "ℹ️  .env 파일 없음 — 셸 환경변수를 그대로 사용합니다 (CI 모드)"
 fi
 
 # ── 필수 환경변수 확인 ────────────────────────────────────────
