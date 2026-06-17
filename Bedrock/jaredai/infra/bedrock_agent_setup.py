@@ -300,7 +300,13 @@ def create_action_groups(agent_id: str):
                     print(f"   ℹ️  이미 존재하는 통합 Action Group 발견: {TARGET_AG_NAME} (건너뜀)")
                     return
     except Exception as e:
-        print(f"   ⚠️  기존 Action Group 조회 실패(무시하고 생성 시도): {e}")
+        print(f"   ❌ 통합 Action Group 생성 중 에러 발생: {e}")
+        # ve 객체가 있을 경우 response 내부를 한꺼번에 다 출력해 봅니다.
+        if hasattr(e, 'response'):
+            import pprint
+            print("\n🔍 [AWS 내부 에러 구조 원본]")
+            pprint.pprint(e.response)
+        raise
 
     # 현재 설정된 람다 중 주축이 되는 함수 하나를 대표 Executor로 지정하거나, 
     # Bedrock 에이전트 라우팅 가이드에 맞춰 람다를 연결합니다.
