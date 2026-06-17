@@ -283,7 +283,7 @@ def create_action_groups(agent_id: str):
     spec_path = os.path.join(os.path.dirname(__file__), "../tools/api_spec.yaml")
     try:
         with open(spec_path, "r", encoding="utf-8") as f:
-            api_spec_content = f.read()
+            api_spec_content = f.read().replace('\xa0', ' ')
     except Exception as e:
         print(f"   ❌ api_spec.yaml 파일을 읽을 수 없습니다: {e}")
         return
