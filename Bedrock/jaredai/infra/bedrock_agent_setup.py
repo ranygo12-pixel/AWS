@@ -256,7 +256,7 @@ def create_bedrock_agent() -> str:
             agentName=AGENT_NAME,
             description="GitHub Issue 기반 AI 코드 초안 생성 및 Jira/GitHub/Slack 자동 연동 에이전트",
             instruction=AGENT_INSTRUCTION,
-            foundationModel=f"global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            foundationModel=f"anthropic.claude-sonnet-4-6",
             agentResourceRoleArn=BEDROCK_IAM_ROLE,
             idleSessionTTLInSeconds=600,
         )
