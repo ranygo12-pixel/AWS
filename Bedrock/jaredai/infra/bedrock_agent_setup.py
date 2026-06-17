@@ -124,7 +124,7 @@ def create_knowledge_base() -> str:
     print("="*60 + "\n")
 
     response = bedrock_agent.create_knowledge_base(
-        name="bedrock-knowledge-base-default-index",
+        name="bedrock-knowledge-base-hgzg8n",
         description="JaredAI용 내부 코딩 표준 및 보안 정책 Knowledge Base",
         roleArn=BEDROCK_IAM_ROLE,
         knowledgeBaseConfiguration={
@@ -140,7 +140,7 @@ def create_knowledge_base() -> str:
             "type": "OPENSEARCH_SERVERLESS",
             "opensearchServerlessConfiguration": {
                 "collectionArn": os.environ.get("OPENSEARCH_COLLECTION_ARN", ""),
-                "vectorIndexName": "jaredai-kb-index",
+                "vectorIndexName": "bedrock-knowledge-base-default-index",
                 "fieldMapping": {
                     "vectorField":    "embedding",
                     "textField":      "text",
