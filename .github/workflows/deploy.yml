@@ -47,6 +47,15 @@ jobs:
           bash infra/deploy.sh all
 
       - name: Setup Bedrock Agent
+        env:
+          AWS_REGION: ap-northeast-2
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          BEDROCK_AGENT_ROLE_ARN: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/AmazonBedrockExecutionRoleForKnowledgeBase_rk91h
+          S3_BUCKET_NAME: <KB 문서가 있는 S3 버킷 이름>
+          OPENSEARCH_COLLECTION_ARN: <OpenSearch Serverless 컬렉션 ARN>
+          JIRA_LAMBDA_ARN: arn:aws:lambda:ap-northeast-2:${{ secrets.AWS_ACCOUNT_ID }}:function:jaredai-jira
+          GITHUB_LAMBDA_ARN: arn:aws:lambda:ap-northeast-2:${{ secrets.AWS_ACCOUNT_ID }}:function:jaredai-github
+          SLACK_LAMBDA_ARN: arn:aws:lambda:ap-northeast-2:${{ secrets.AWS_ACCOUNT_ID }}:function:jaredai-slack
         run: |
           cd Bedrock/jaredai
           python infra/bedrock_agent_setup.py
