@@ -105,6 +105,24 @@ def setup_all():
 def create_knowledge_base() -> str:
     print("\n[1/7] Knowledge Base 생성 중...")
 
+    # 🛠️ 디버깅 세션: 실제 호출 전 환경 변수 및 AWS 컨텍스트 상세 확인
+    print("\n" + "="*60)
+    print("🔍 [DEBUG] CreateKnowledgeBase 실행 전 유효성 검증 로그")
+    print("="*60)
+    print(f"🔹 [1] 코드에 바인딩된 Role ARN : {BEDROCK_IAM_ROLE}")
+    
+    current_region = bedrock_agent.meta.region_name
+    print(f"🔹 [2] 현재 Client 설정 리전     : {current_region}")
+    
+    try:
+        sts_client = boto3.client('sts', region_name=current_region)
+        caller = sts_client.get_caller_identity()
+        print(f"🔹 [3] 현재 호출자 AWS 계정 ID  : {caller['Account']}")
+        print(f"🔹 [4] 현재 호출자 자격증명 ARN : {caller['Arn']}")
+    except Exception as e:
+        print(f"❌ [STS 오류] 호출자 신원 확인 실패: {e}")
+    print("="*60 + "\n")
+
     response = bedrock_agent.create_knowledge_base(
         name="jaredai-coding-standards-kb",
         description="JaredAI용 내부 코딩 표준 및 보안 정책 Knowledge Base",
