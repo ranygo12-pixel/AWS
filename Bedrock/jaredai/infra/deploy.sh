@@ -73,6 +73,11 @@ build_and_deploy() {
       --region "$REGION" \
       --output json > /dev/null
 
+    # 배포 안정화 대기 (코드 업데이트 후 환경변수 업데이트 전에 필요)
+    aws lambda wait function-updated \
+      --function-name "$func_name" \
+      --region "$REGION"
+
     # 환경변수 업데이트
     update_env_vars "$func_name"
 
@@ -92,6 +97,11 @@ build_and_deploy() {
       --region "$REGION" \
       --output json > /dev/null
 
+    # 배포 안정화 대기 (생성 후 환경변수 업데이트 전에 필요)
+    aws lambda wait function-updated \
+      --function-name "$func_name" \
+      --region "$REGION"
+
     update_env_vars "$func_name"
   fi
 
@@ -107,14 +117,11 @@ update_env_vars() {
   local func_name="$1"
   local ENV_VARS=""
 
-  # 디버깅: 변수가 비어있는지 확인
-  echo "DEBUG: func_name is $func_name"
-  echo "DEBUG: JARED_GITHUB_PAT is '$JARED_GITHUB_PAT'"
-  echo "DEBUG: ENV_VARS is '$ENV_VARS'"
-
   case "$func_name" in
     *orchestrator*)
-      ENV_VARS="AWS_REGION=ap-northeast-2"
+      # AWS_REGION은 Lambda 예약 환경변수라 직접 설정 불가.
+      # orchestrator는 별도 커스텀 환경변수가 필요 없으므로 비워둠.
+      ENV_VARS=""
       ;;
     *jira*)
       # 줄 바꿈 없이 한 줄로 작성
@@ -128,16 +135,16 @@ update_env_vars() {
       ;;
   esac
 
-  echo "DEBUG: 최종 ENV_VARS 값은 '$ENV_VARS' 입니다."
-  
   if [ -n "$ENV_VARS" ]; then
-    echo "    🔄 환경변수 업데이트 중: $ENV_VARS"
+    echo "    🔄 환경변수 업데이트 중 (키 목록): $(echo "$ENV_VARS" | tr ',' '\n' | cut -d= -f1 | tr '\n' ' ')"
     aws lambda update-function-configuration \
       --function-name "$func_name" \
       --environment "Variables={$ENV_VARS}" \
       --region "$REGION" \
       --output json > /dev/null
     echo "    ✓ 환경변수 업데이트 완료"
+  else
+    echo "    ℹ️  [${func_name}] 커스텀 환경변수 없음 — 업데이트 스킵"
   fi
 }
 
