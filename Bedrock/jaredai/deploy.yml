@@ -37,7 +37,7 @@ jobs:
         run: |
           echo "JIRA_API_TOKEN=${{ secrets.JIRA_API_TOKEN }}" >> .env
           echo "JIRA_INSTANCE_URL=${{ secrets.JIRA_INSTANCE_URL }}" >> .env
-          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> .env
+          echo "GITHUB_TOKEN=${{ secrets.JARED_GITHUB_PAT }}" >> .env
           echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}" >> .env
 
       # [5단계] 파이썬 패키지 의존성 설치
