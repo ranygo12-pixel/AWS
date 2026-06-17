@@ -124,7 +124,7 @@ def create_knowledge_base() -> str:
     print("="*60 + "\n")
 
     response = bedrock_agent.create_knowledge_base(
-        name="jaredai-coding-standards-kb",
+        name="bedrock-knowledge-base-default-index",
         description="JaredAI용 내부 코딩 표준 및 보안 정책 Knowledge Base",
         roleArn=BEDROCK_IAM_ROLE,
         knowledgeBaseConfiguration={
