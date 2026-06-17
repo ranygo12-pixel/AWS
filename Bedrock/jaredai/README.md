@@ -20,5 +20,6 @@ jaredai/
 │
 ├── .env.example                      환경변수 템플릿
 ├── requirements.txt
+├── deploy.yml
 └── README.md
 ```
