@@ -27,6 +27,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          
           aws-region: ap-northeast-2
 
       - name: Create env file
@@ -36,6 +37,8 @@ jobs:
           echo "JIRA_INSTANCE_URL=${{ secrets.JIRA_INSTANCE_URL }}" >> .env
           echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}" >> .env
           echo "GITHUB_TOKEN=${{ secrets.JARED_PAT }}" >> .env
+          echo "AWS_REGION=ap-northeast-2" >> .env
+          echo "AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}" >> .env
 
       - name: Install Dependencies
         run: |
