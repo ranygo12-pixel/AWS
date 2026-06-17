@@ -371,10 +371,24 @@ def prepare_and_alias(agent_id: str) -> str:
 
     TARGET_ALIAS_NAME = "production"
 
-    # Prepare (변경사항 적용)
+    # Prepare (변경사항 적용) — polling으로 완료 대기
     bedrock_agent.prepare_agent(agentId=agent_id)
-    print("   ✓ Agent Prepare 완료")
-    time.sleep(10)  # Prepare 완료 대기
+    print("   ✓ Agent Prepare 요청 완료, 상태 확인 중...")
+
+    max_wait = 120  # 최대 120초 대기
+    waited = 0
+    while waited < max_wait:
+        resp = bedrock_agent.get_agent(agentId=agent_id)
+        status = resp["agent"]["agentStatus"]
+        if status == "PREPARED":
+            print("   ✓ Agent가 PREPARED 상태로 전환 완료")
+            break
+        elif status == "FAILED":
+            raise RuntimeError(f"Agent Prepare 실패: {resp['agent'].get('failureReasons')}")
+        time.sleep(5)
+        waited += 5
+    else:
+        raise TimeoutError("Agent Prepare 대기 시간 초과")
 
     # 🔍 기존에 동일한 이름의 Alias가 존재하는지 체크합니다.
     try:
@@ -388,15 +402,13 @@ def prepare_and_alias(agent_id: str) -> str:
     except Exception as e:
         print(f"   ⚠️  Alias 목록 조회 중 에러 발생: {e}")
 
-    # Alias 생성
+    # Alias 생성 — routingConfiguration을 비워서 Bedrock이 새 버전을 자동 생성하도록 함
     try:
         response = bedrock_agent.create_agent_alias(
             agentId=agent_id,
             agentAliasName=TARGET_ALIAS_NAME,
             description="JaredAI 운영 환경 Alias",
-            routingConfiguration=[
-                {"agentVersion": "1"},
-            ],
+            # routingConfiguration을 생략하면 Bedrock이 자동으로 새 버전을 만들어 연결합니다.
         )
         alias_id = response["agentAlias"]["agentAliasId"]
         print(f"   ✓ Alias 생성: {alias_id}")
@@ -409,7 +421,3 @@ def prepare_and_alias(agent_id: str) -> str:
                 if alias['agentAliasName'] == TARGET_ALIAS_NAME:
                     return alias['agentAliasId']
         raise
-
-
-if __name__ == "__main__":
-    setup_all()
