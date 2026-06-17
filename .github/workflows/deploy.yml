@@ -61,7 +61,7 @@ jobs:
           SLACK_LAMBDA_ARN: arn:aws:lambda:ap-northeast-2:${{ secrets.AWS_ACCOUNT_ID }}:function:jaredai-slack
         run: |
           cd Bedrock/jaredai
-          python infra/bedrock_agent_setup.py
+          python -u infra/bedrock_agent_setup.py
 
       - name: Success Notification
         run: echo "Deployment Completed Successfully!"
