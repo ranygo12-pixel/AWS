@@ -111,7 +111,7 @@ def create_knowledge_base() -> str:
             "vectorKnowledgeBaseConfiguration": {
                 "embeddingModelArn": (
                     f"arn:aws:bedrock:{AWS_REGION}::foundation-model/"
-                    "amazon.titan-embed-text-v1"
+                    "amazon.titan-embed-text-v2:0"
                 )
             },
         },
