@@ -275,59 +275,61 @@ def create_bedrock_agent() -> str:
         raise
 
 
-# ── 5단계: Action Group 생성 (Tool Lambda 연결) ───────────────────────────
+# ── 5단계: Action Group 생성 (통합 단일 액션 그룹 구조로 개편) ───────────────────────────
 def create_action_groups(agent_id: str):
     print("\n[5/7] Action Groups 생성 중...")
 
-    # api_spec.yaml 읽기
+    # api_spec.yaml 읽기 (Jira, GitHub, Slack 경로가 모두 정의된 통합 명세서)
     spec_path = os.path.join(os.path.dirname(__file__), "../tools/api_spec.yaml")
-    with open(spec_path, "r", encoding="utf-8") as f:
-        api_spec_content = f.read()
+    try:
+        with open(spec_path, "r", encoding="utf-8") as f:
+            api_spec_content = f.read()
+    except Exception as e:
+        print(f"   ❌ api_spec.yaml 파일을 읽을 수 없습니다: {e}")
+        return
 
-    # Jira + GitHub + Slack을 단일 Action Group으로 묶음
-    # (각 Lambda가 apiPath로 분기 처리)
-    lambda_arns = [JIRA_LAMBDA_ARN, GITHUB_LAMBDA_ARN, SLACK_LAMBDA_ARN]
-    tool_names = ["Jira", "GitHub", "Slack"]
+    # 💡 근본 해결: 3개의 기능을 찢지 않고 'JaredAI-Unified-Tool' 하나로 통합 바인딩합니다.
+    TARGET_AG_NAME = "JaredAI-Unified-Tool"
 
-    # 🔍 기존에 이미 매핑된 Action Group 목록을 먼저 확보합니다.
-    existing_ags = []
+    # 🔍 기존에 이미 해당 통합 액션 그룹이 붙어있는지 조회
     try:
         paginator = bedrock_agent.get_paginator('list_agent_action_groups')
         for page in paginator.paginate(agentId=agent_id, agentVersion="DRAFT"):
             for ag in page.get('actionGroupSummaries', []):
-                existing_ags.append(ag['actionGroupName'])
+                if ag['actionGroupName'] == TARGET_AG_NAME:
+                    print(f"   ℹ️  이미 존재하는 통합 Action Group 발견: {TARGET_AG_NAME} (건너뜀)")
+                    return
     except Exception as e:
-        print(f"   ⚠️  기존 Action Group 조회 실패(무시하고 매핑 시도): {e}")
+        print(f"   ⚠️  기존 Action Group 조회 실패(무시하고 생성 시도): {e}")
 
-    for i, lambda_arn in enumerate(lambda_arns):
-        if not lambda_arn:
-            print(f"   ⚠ Lambda ARN {i+1} 미설정 - 건너뜀")
-            continue
+    # 현재 설정된 람다 중 주축이 되는 함수 하나를 대표 Executor로 지정하거나, 
+    # Bedrock 에이전트 라우팅 가이드에 맞춰 람다를 연결합니다.
+    # (일반적으로 단일 OpenAPI Spec은 단일 라우팅 엔드포인트 람다를 가지는 것이 표준입니다.)
+    # 여기서는 가장 먼저 실행되는 JIRA_LAMBDA_ARN을 대표로 지정하거나 공통 람다 엔드포인트를 사용합니다.
+    PRIMARY_LAMBDA_ARN = JIRA_LAMBDA_ARN if JIRA_LAMBDA_ARN else GITHUB_LAMBDA_ARN
 
-        target_ag_name = f"JaredAI-{tool_names[i]}-Tool"
+    if not PRIMARY_LAMBDA_ARN:
+        print("   ❌ 액션 그룹을 생성할 람다 ARN이 존재하지 않습니다.")
+        return
 
-        # 💡 이미 등록된 툴이라면 생성 단계를 패스합니다.
-        if target_ag_name in existing_ags:
-            print(f"   ℹ️  이미 존재하는 Action Group 발견: {target_ag_name} (건너뜀)")
-            continue
-
-        try:
-            response = bedrock_agent.create_agent_action_group(
-                agentId=agent_id,
-                agentVersion="DRAFT",
-                actionGroupName=target_ag_name,
-                description=f"{tool_names[i]} 연동 도구",
-                actionGroupExecutor={"lambda": lambda_arn},
-                apiSchema={
-                    "payload": api_spec_content,
-                },
-            )
-            ag_id = response["agentActionGroup"]["actionGroupId"]
-            print(f"   ✓ {tool_names[i]} Action Group 생성 성공: {ag_id}")
-            time.sleep(2)
-        except bedrock_agent.exceptions.ConflictException:
-            print(f"   ℹ️  {target_ag_name}이 충돌(이미 존재)하므로 건너뜁니다.")
-
+    try:
+        response = bedrock_agent.create_agent_action_group(
+            agentId=agent_id,
+            agentVersion="DRAFT",
+            actionGroupName=TARGET_AG_NAME,
+            description="Jira, GitHub, Slack 연동 통합 도구 세트",
+            actionGroupExecutor={"lambda": PRIMARY_LAMBDA_ARN}, # 👈 이 람다가 내부에서 Event['apiPath']를 보고 분기하도록 설계하는 것이 Bedrock의 정석 아키텍처입니다.
+            apiSchema={
+                "payload": api_spec_content,
+            },
+        )
+        ag_id = response["agentActionGroup"]["actionGroupId"]
+        print(f"   ✓ 통합 Action Group 생성 성공: {ag_id}")
+    except bedrock_agent.exceptions.ConflictException:
+        print(f"   ℹ️  {TARGET_AG_NAME}이 이미 존재하므로 다음 단계로 진행합니다.")
+    except Exception as e:
+        print(f"   ❌ 통합 Action Group 생성 중 에러 발생: {e}")
+        raise
 
 # ── 6단계: Knowledge Base 연결 ────────────────────────────────────────────
 def associate_knowledge_base(agent_id: str, kb_id: str):
