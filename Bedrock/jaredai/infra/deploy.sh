@@ -131,6 +131,8 @@ update_env_vars() {
       ;;
   esac
 
+  echo "DEBUG: 최종 ENV_VARS 값은 '$ENV_VARS' 입니다."
+  
   if [ -n "$ENV_VARS" ]; then
     echo "    🔄 환경변수 업데이트 중: $ENV_VARS"
     aws lambda update-function-configuration \
