@@ -24,6 +24,7 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip' # 빌드 속도 향상을 위한 캐싱
+          cache-dependency-path: 'Bedrock/jaredai/requirements.txt
 
       # [3단계] AWS 자격 증명 설정 (Secrets 연동)
       - name: Configure AWS Credentials
