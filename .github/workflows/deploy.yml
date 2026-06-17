@@ -6,7 +6,7 @@ on:
       - main
     # 파일 변화를 감지하되, 핵심 로직이 바뀔 때 전체 파이프라인이 돌도록 설정
     paths:
-      - 'AWS/Bedrock/jaredai/**'
+      - 'Bedrock/jaredai/**'
     
   workflow_dispatch:
 
