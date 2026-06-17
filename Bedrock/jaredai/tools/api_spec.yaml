@@ -51,7 +51,7 @@ paths:
                 properties:
                   jira_issue_id:
                     type: string
-                    description: 생성된 Jira 티켓 ID (예: PROJ-123)
+                    description: "생성된 Jira 티켓 ID (예: PROJ-123)"
                   jira_issue_url:
                     type: string
                     description: 생성된 Jira 티켓 URL
@@ -137,7 +137,7 @@ paths:
                   description: GitHub Issue URL
                 jira_issue_id:
                   type: string
-                  description: 생성된 Jira 티켓 ID (예: PROJ-123)
+                  description: "생성된 Jira 티켓 ID (예: PROJ-123)"
                 jira_issue_url:
                   type: string
                   description: 생성된 Jira 티켓 URL
