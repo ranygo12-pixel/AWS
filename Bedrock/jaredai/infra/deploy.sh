@@ -109,6 +109,7 @@ build_and_deploy() {
 
 update_env_vars() {
   local func_name="$1"
+  local ENV_VARS=""
 
   # 함수별 환경변수 선택
   case "$func_name" in
