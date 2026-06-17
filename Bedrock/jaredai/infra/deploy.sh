@@ -108,8 +108,9 @@ update_env_vars() {
   local func_name="$1"
   local ENV_VARS=""
 
-  # 확인용 코드 (디버깅 시 사용)
+  # 디버깅: 변수가 비어있는지 확인
   echo "DEBUG: func_name is $func_name"
+  echo "DEBUG: JARED_GITHUB_PAT is '$JARED_GITHUB_PAT'"
   echo "DEBUG: ENV_VARS is '$ENV_VARS'"
 
   case "$func_name" in
