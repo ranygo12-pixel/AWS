@@ -1,58 +1,61 @@
-name: Jared.ai Serverless CI/CD Deployment
+name: Jared.ai End-to-End DevSecOps Deployment
 
-# 1. 트리거 조건: lambdas/ 폴더 내부가 변경되어 main 브랜치에 push될 때만 실행
 on:
   push:
     branches:
       - main
+    # 파일 변화를 감지하되, 핵심 로직이 바뀔 때 전체 파이프라인이 돌도록 설정
     paths:
-      - 'jaredai/**'
+      - 'AWS/Bedrock/jaredai/**'
 
 jobs:
-  deploy-lambdas:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      # [1단계] GitHub 저장소 코드 체크아웃
+      # [1단계] 저장소 코드 체크아웃
       - name: Checkout Repository Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # [2단계] Python 실행 환경 세팅
+      # [2단계] 파이썬 환경 구성
       - name: Set up Python
-        uses: actions/python-version@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip' # 빌드 속도 향상을 위한 캐싱
 
-      # [3단계] AWS 자격 증명 설정 (Secrets 기반 권한 인증)
+      # [3단계] AWS 자격 증명 설정 (Secrets 연동)
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-northeast-2 # 강의 자료와 동일한 서울 리전 세팅
+          aws-region: ap-northeast-2
 
-      # [4단계] Lambdas 폴더 내부를 각각 개별 압축하여 AWS Lambda로 코드 업데이트 진행
-      - name: Zip and Deploy Each Lambda Function
+      # [4단계] 수동 'cp .env.example .env' 과정 자동화 (환경변수 주입)
+      # GitHub Secrets에 등록된 키들을 기반으로 가상환경 내에 .env 파일 자동 생성
+      - name: Create .env file from GitHub Secrets
         run: |
-          cd lambdas
+          echo "JIRA_API_TOKEN=${{ secrets.JIRA_API_TOKEN }}" >> .env
+          echo "JIRA_INSTANCE_URL=${{ secrets.JIRA_INSTANCE_URL }}" >> .env
+          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> .env
+          echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}" >> .env
+
+      # [5단계] 파이썬 패키지 의존성 설치
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # [6단계] 수동 'bash infra/deploy.sh all' 과정 자동화 (Lambda 인프라 배포)
+      - name: Deploy Lambda Functions via Infrastructure Script
+        run: |
+          chmod +x infra/deploy.sh
+          bash infra/deploy.sh all
+
+      # [7단계] 수동 'python infra/bedrock_agent_setup.py' 과정 자동화 (Bedrock & KB 설정)
+      - name: Setup Bedrock Agent and Knowledge Base
+        run: |
+          python infra/bedrock_agent_setup.py
           
-          # 1. 오케스트레이터 람다 배포
-          echo "Deploying Orchestrator Lambda..."
-          zip -j orchestrator.zip orchestrator_lambda.py
-          aws lambda update-function-code --function-name Jared-Orchestrator-Lambda --zip-file fileb://orchestrator.zip
-          
-          # 2. 지라 툴 람다 배포
-          echo "Deploying Jira Tool Lambda..."
-          zip -j jira_tool.zip jira_tool_lambda.py
-          aws lambda update-function-code --function-name Jared-Jira-Tool-Lambda --zip-file fileb://jira_tool.zip
-          
-          # 3. 깃허브 툴 람다 배포
-          echo "Deploying GitHub Tool Lambda..."
-          zip -j github_tool.zip github_tool_lambda.py
-          aws lambda update-function-code --function-name Jared-GitHub-Tool-Lambda --zip-file fileb://github_tool.zip
-          
-          # 4. 슬랙 툴 람다 배포
-          echo "Deploying Slack Tool Lambda..."
-          zip -j slack_tool.zip slack_tool_lambda.py
-          aws lambda update-function-code --function-name Jared-Slack-Tool-Lambda --zip-file fileb://slack_tool.zip
-          
-          echo "✅ 모든 자레드 AI 에이전트 람다 함수가 성공적으로 배포되었습니다!"
+      - name: Success Notification
+        run: echo "🎉 자레드(Jared)의 인프라 및 소스 코드 배포가 완전히 자동화 완료되었습니다!"
