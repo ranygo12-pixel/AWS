@@ -214,36 +214,7 @@ def create_data_source(kb_id: str) -> str:
             for ds in page.get('dataSourceSummaries', []):
                 if ds['name'] == DATA_SOURCE_NAME:
                     return ds['dataSourceId']
-        raise# ── 2단계: S3 데이터 소스 연결 ────────────────────────────────────────────
-def create_data_source(kb_id: str) -> str:
-    print("\n[2/7] S3 데이터 소스 연결 중...")
-
-    response = bedrock_agent.create_data_source(
-        knowledgeBaseId=kb_id,
-        name="jaredai-s3-docs",
-        description="내부 코딩 표준 및 보안 정책 문서 (S3)",
-        dataSourceConfiguration={
-            "type": "S3",
-            "s3Configuration": {
-                "bucketArn": f"arn:aws:s3:::{S3_BUCKET_NAME}",
-                "inclusionPrefixes": ["knowledge_base/"],
-            },
-        },
-        vectorIngestionConfiguration={
-            "chunkingConfiguration": {
-                "chunkingStrategy": "FIXED_SIZE",
-                "fixedSizeChunkingConfiguration": {
-                    "maxTokens":       512,
-                    "overlapPercentage": 20,
-                },
-            }
-        },
-    )
-
-    ds_id = response["dataSource"]["dataSourceId"]
-    print(f"   ✓ 데이터 소스 생성: {ds_id}")
-    return ds_id
-
+        raise
 
 # ── 3단계: 인덱싱 시작 ────────────────────────────────────────────────────
 def start_ingestion(kb_id: str, ds_id: str):
