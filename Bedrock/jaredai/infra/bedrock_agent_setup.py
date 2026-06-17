@@ -66,6 +66,9 @@ def setup_all():
     print("🚀 JaredAI Bedrock Agent 설정 시작")
     print("=" * 60)
 
+    print("IAM 역할 전파를 위해 15초간 대기합니다...")
+    time.sleep(15)
+
     # 1단계: Knowledge Base 생성
     kb_id = create_knowledge_base()
 
