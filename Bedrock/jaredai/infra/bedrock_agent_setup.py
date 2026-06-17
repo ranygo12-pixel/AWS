@@ -142,9 +142,9 @@ def create_knowledge_base() -> str:
                 "collectionArn": os.environ.get("OPENSEARCH_COLLECTION_ARN", ""),
                 "vectorIndexName": "bedrock-knowledge-base-default-index",
                 "fieldMapping": {
-                    "vectorField":    "embedding",
-                    "textField":      "text",
-                    "metadataField":  "metadata",
+                    "vectorField":    "bedrock-knowledge-base-default-vector",
+                    "textField":      "AMAZON_BEDROCK_TEXT_CHUNK",
+                    "metadataField":  "AMAZON_BEDROCK_METADATA",
                 },
             },
         },
