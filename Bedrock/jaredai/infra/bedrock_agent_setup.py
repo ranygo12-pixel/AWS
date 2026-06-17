@@ -101,60 +101,71 @@ def setup_all():
     print("=" * 60)
 
 
-# ── 1단계: Knowledge Base 생성 ────────────────────────────────────────────
+# ── 1단계: Knowledge Base 생성 또는 기존 리소스 연동 ────────────────────────────────────────────
 def create_knowledge_base() -> str:
-    print("\n[1/7] Knowledge Base 생성 중...")
+    print("\n[1/7] Knowledge Base 확인 및 생성 프로세스 시작...")
 
-    # 🛠️ 디버깅 세션: 실제 호출 전 환경 변수 및 AWS 컨텍스트 상세 확인
-    print("\n" + "="*60)
-    print("🔍 [DEBUG] CreateKnowledgeBase 실행 전 유효성 검증 로그")
-    print("="*60)
-    print(f"🔹 [1] 코드에 바인딩된 Role ARN : {BEDROCK_IAM_ROLE}")
-    
-    current_region = bedrock_agent.meta.region_name
-    print(f"🔹 [2] 현재 Client 설정 리전     : {current_region}")
-    
+    # 💡 콘솔에 구성된 실제 Knowledge Base 이름과 정확히 일치시킵니다.
+    KB_NAME = "bedrock-knowledge-base-hgzg8n" 
+
+    # 1. 🔍 이미 존재하는지 먼저 목록을 조회해 봅니다.
     try:
-        sts_client = boto3.client('sts', region_name=current_region)
-        caller = sts_client.get_caller_identity()
-        print(f"🔹 [3] 현재 호출자 AWS 계정 ID  : {caller['Account']}")
-        print(f"🔹 [4] 현재 호출자 자격증명 ARN : {caller['Arn']}")
+        paginator = bedrock_agent.get_paginator('list_knowledge_bases')
+        for page in paginator.paginate():
+            for kb in page.get('knowledgeBaseSummaries', []):
+                if kb['name'] == KB_NAME:
+                    # 동일한 이름이 이미 있다면 생성하지 않고 기존 ID를 리턴합니다.
+                    existing_kb_id = kb['knowledgeBaseId']
+                    print(f"   ℹ️  이미 존재하는 Knowledge Base를 발견했습니다. (이름: {KB_NAME}, ID: {existing_kb_id})")
+                    print("   ✓ 기존 리소스를 연동하여 다음 단계를 진행합니다.")
+                    return existing_kb_id
     except Exception as e:
-        print(f"❌ [STS 오류] 호출자 신원 확인 실패: {e}")
-    print("="*60 + "\n")
+        print(f"   ⚠️  기존 KB 목록을 조회하는 중 오류 발생(무시하고 생성을 시도합니다): {e}")
 
-    response = bedrock_agent.create_knowledge_base(
-        name="bedrock-knowledge-base-hgzg8n",
-        description="JaredAI용 내부 코딩 표준 및 보안 정책 Knowledge Base",
-        roleArn=BEDROCK_IAM_ROLE,
-        knowledgeBaseConfiguration={
-            "type": "VECTOR",
-            "vectorKnowledgeBaseConfiguration": {
-                "embeddingModelArn": (
-                    f"arn:aws:bedrock:{AWS_REGION}::foundation-model/"
-                    "amazon.titan-embed-text-v2:0"
-                )
-            },
-        },
-        storageConfiguration={
-            "type": "OPENSEARCH_SERVERLESS",
-            "opensearchServerlessConfiguration": {
-                "collectionArn": os.environ.get("OPENSEARCH_COLLECTION_ARN", ""),
-                "vectorIndexName": "bedrock-knowledge-base-default-index",
-                "fieldMapping": {
-                    "vectorField":    "bedrock-knowledge-base-default-vector",
-                    "textField":      "AMAZON_BEDROCK_TEXT_CHUNK",
-                    "metadataField":  "AMAZON_BEDROCK_METADATA",
+    # 2. ✨ 목록에 없다면 새로 생성을 시도합니다.
+    print(f"   🆕  {KB_NAME} 리소스가 없으므로 새로 생성을 시도합니다...")
+    try:
+        response = bedrock_agent.create_knowledge_base(
+            name=KB_NAME, 
+            description="JaredAI용 내부 코딩 표준 및 보안 정책 Knowledge Base",
+            roleArn=BEDROCK_IAM_ROLE,
+            knowledgeBaseConfiguration={
+                "type": "VECTOR",
+                "vectorKnowledgeBaseConfiguration": {
+                    "embeddingModelArn": (
+                        f"arn:aws:bedrock:{AWS_REGION}::foundation-model/"
+                        "amazon.titan-embed-text-v2:0"
+                    )
                 },
             },
-        },
-    )
+            storageConfiguration={
+                "type": "OPENSEARCH_SERVERLESS",
+                "opensearchServerlessConfiguration": {
+                    "collectionArn": os.environ.get("OPENSEARCH_COLLECTION_ARN", ""),
+                    # 💡 실제 콘솔 내 인덱스 및 필드 정보와 완벽히 일치화 완료
+                    "vectorIndexName": "bedrock-knowledge-base-default-index", 
+                    "fieldMapping": {
+                        "vectorField":    "bedrock-knowledge-base-default-vector",
+                        "textField":      "AMAZON_BEDROCK_TEXT_CHUNK",
+                        "metadataField":  "AMAZON_BEDROCK_METADATA",
+                    },
+                },
+            },
+        )
+        kb_id = response["knowledgeBase"]["knowledgeBaseId"]
+        print(f"   ✓ Knowledge Base 새로 생성 완료: {kb_id}")
+        return kb_id
 
-    kb_id = response["knowledgeBase"]["knowledgeBaseId"]
-    print(f"   ✓ Knowledge Base 생성: {kb_id}")
-    return kb_id
-
-
+    except bedrock_agent.exceptions.ConflictException:
+        # 혹시 모를 레이스 컨디션 충돌에 대비한 이중 안전장치
+        print(f"   ℹ️  생성 중 충돌 발생: {KB_NAME}이 이미 존재하므로 ID를 다시 조회합니다.")
+        pages = bedrock_agent.get_paginator('list_knowledge_bases').paginate()
+        for page in pages:
+            for kb in page.get('knowledgeBaseSummaries', []):
+                if kb['name'] == KB_NAME:
+                    return kb['knowledgeBaseId']
+        raise
+        
 # ── 2단계: S3 데이터 소스 연결 ────────────────────────────────────────────
 def create_data_source(kb_id: str) -> str:
     print("\n[2/7] S3 데이터 소스 연결 중...")
