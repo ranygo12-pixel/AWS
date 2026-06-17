@@ -331,4 +331,77 @@ def create_action_groups(agent_id: str):
 
 # ── 6단계: Knowledge Base 연결 ────────────────────────────────────────────
 def associate_knowledge_base(agent_id: str, kb_id: str):
-    print("\
+    print("\n[6/7] Knowledge Base 연결 중...")
+
+    # 🔍 Agent에 이미 이 KB가 붙어있는지 확인합니다.
+    try:
+        paginator = bedrock_agent.get_paginator('list_agent_knowledge_bases')
+        for page in paginator.paginate(agentId=agent_id, agentVersion="DRAFT"):
+            for kb in page.get('knowledgeBaseSummaries', []):
+                if kb['knowledgeBaseId'] == kb_id:
+                    print(f"   ℹ️  KB {kb_id}가 이미 Agent에 연동되어 있습니다. (건너뜀)")
+                    return
+    except Exception as e:
+        pass
+
+    try:
+        bedrock_agent.associate_agent_knowledge_base(
+            agentId=agent_id,
+            agentVersion="DRAFT",
+            knowledgeBaseId=kb_id,
+            description="내부 코딩 표준 및 보안 정책 검색",
+            knowledgeBaseState="ENABLED",
+        )
+        print(f"   ✓ KB {kb_id} → Agent {agent_id} 연결 완료")
+    except bedrock_agent.exceptions.ConflictException:
+        print(f"   ℹ️  KB 연동 충돌(이미 연동됨)로 다음 단계 진행합니다.")
+
+
+# ── 7단계: Prepare + Alias 생성 ───────────────────────────────────────────
+def prepare_and_alias(agent_id: str) -> str:
+    print("\n[7/7] Agent Prepare 및 Alias 생성 중...")
+
+    TARGET_ALIAS_NAME = "production"
+
+    # Prepare (변경사항 적용)
+    bedrock_agent.prepare_agent(agentId=agent_id)
+    print("   ✓ Agent Prepare 완료")
+    time.sleep(10)  # Prepare 완료 대기
+
+    # 🔍 기존에 동일한 이름의 Alias가 존재하는지 체크합니다.
+    try:
+        paginator = bedrock_agent.get_paginator('list_agent_aliases')
+        for page in paginator.paginate(agentId=agent_id):
+            for alias in page.get('agentAliasSummaries', []):
+                if alias['agentAliasName'] == TARGET_ALIAS_NAME:
+                    existing_alias_id = alias['agentAliasId']
+                    print(f"   ℹ️  이미 존재하는 Alias 발견: {TARGET_ALIAS_NAME} (ID: {existing_alias_id})")
+                    return existing_alias_id
+    except Exception as e:
+        print(f"   ⚠️  Alias 목록 조회 중 에러 발생: {e}")
+
+    # Alias 생성
+    try:
+        response = bedrock_agent.create_agent_alias(
+            agentId=agent_id,
+            agentAliasName=TARGET_ALIAS_NAME,
+            description="JaredAI 운영 환경 Alias",
+            routingConfiguration=[
+                {"agentVersion": "1"},
+            ],
+        )
+        alias_id = response["agentAlias"]["agentAliasId"]
+        print(f"   ✓ Alias 생성: {alias_id}")
+        return alias_id
+    except bedrock_agent.exceptions.ConflictException:
+        print(f"   ℹ️  Alias 충돌 발생으로 다시 한 번 목록을 검색하여 리턴합니다.")
+        pages = bedrock_agent.get_paginator('list_agent_aliases').paginate(agentId=agent_id)
+        for page in pages:
+            for alias in page.get('agentAliasSummaries', []):
+                if alias['agentAliasName'] == TARGET_ALIAS_NAME:
+                    return alias['agentAliasId']
+        raise
+
+
+if __name__ == "__main__":
+    setup_all()
