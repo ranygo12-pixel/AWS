@@ -178,7 +178,10 @@ def create_data_source(kb_id: str) -> str:
         for page in paginator.paginate(knowledgeBaseId=kb_id):
             for ds in page.get('dataSourceSummaries', []):
                 if ds['name'] == DATA_SOURCE_NAME:
-                    return ds['dataSourceId']
+                    existing_ds_id = ds['dataSourceId']
+                    print(f"   ℹ️  이미 존재하는 Data Source를 발견했습니다. (이름: {DATA_SOURCE_NAME}, ID: {existing_ds_id})")
+                    print("   ✓ 기존 Data Source 리소스를 연동하여 다음 단계를 진행합니다.")
+                    return existing_ds_id
     except Exception as e:
         pass
 
@@ -214,32 +217,62 @@ def create_data_source(kb_id: str) -> str:
 def start_ingestion(kb_id: str, ds_id: str):
     print("\n[3/7] Knowledge Base 인덱싱 시작...")
 
-    response = bedrock_agent.start_ingestion_job(
-        knowledgeBaseId=kb_id,
-        dataSourceId=ds_id,
-    )
-    job_id = response["ingestionJob"]["ingestionJobId"]
-    print(f"   ✓ 인덱싱 작업 시작: {job_id}")
-    print("   ⏳ 인덱싱은 백그라운드에서 진행됩니다. 완료까지 수 분 소요.")
+    try:
+        response = bedrock_agent.start_ingestion_job(
+            knowledgeBaseId=kb_id,
+            dataSourceId=ds_id,
+        )
+        job_id = response["ingestionJob"]["ingestionJobId"]
+        print(f"   ✓ 인덱싱 작업 시작: {job_id}")
+        print("   ⏳ 인덱싱은 백그라운드에서 진행됩니다. 완료까지 수 분 소요.")
+    except Exception as e:
+        # 인덱싱이 이미 실행 중이거나 백그라운드 작업일 경우 멈추지 않도록 예외 처리만 수행
+        print(f"   ℹ️  인덱싱 작업 요청 결과: {e} (다음 단계로 진행합니다.)")
 
 
 # ── 4단계: Bedrock Agent 생성 ─────────────────────────────────────────────
 def create_bedrock_agent() -> str:
     print("\n[4/7] Bedrock Agent 생성 중...")
 
-    response = bedrock_agent.create_agent(
-        agentName="JaredAI-Agent",
-        description="GitHub Issue 기반 AI 코드 초안 생성 및 Jira/GitHub/Slack 자동 연동 에이전트",
-        instruction=AGENT_INSTRUCTION,
-        foundationModel=f"anthropic.claude-sonnet-4-5",
-        agentResourceRoleArn=BEDROCK_IAM_ROLE,
-        idleSessionTTLInSeconds=600,
-    )
+    AGENT_NAME = "JaredAI-Agent"
 
-    agent_id = response["agent"]["agentId"]
-    print(f"   ✓ Agent 생성: {agent_id}")
-    time.sleep(5)  # Agent 생성 안정화 대기
-    return agent_id
+    # 1. 🔍 동일한 이름의 Agent가 이미 있는지 싹 훑어봅니다.
+    try:
+        paginator = bedrock_agent.get_paginator('list_agents')
+        for page in paginator.paginate():
+            for agent in page.get('agentSummaries', []):
+                if agent['agentName'] == AGENT_NAME:
+                    existing_agent_id = agent['agentId']
+                    print(f"   ℹ️  이미 존재하는 Agent를 발견했습니다. (이름: {AGENT_NAME}, ID: {existing_agent_id})")
+                    print("   ✓ 기존 Agent 리소스를 연동하여 다음 단계를 진행합니다.")
+                    return existing_agent_id
+    except Exception as e:
+        print(f"   ⚠️  기존 Agent 목록 조회 중 에러 발생: {e}")
+
+    # 2. ✨ 없을 경우 신규 생성 실행
+    print(f"   🆕  {AGENT_NAME} 리소스가 없으므로 새로 생성을 시도합니다...")
+    try:
+        response = bedrock_agent.create_agent(
+            agentName=AGENT_NAME,
+            description="GitHub Issue 기반 AI 코드 초안 생성 및 Jira/GitHub/Slack 자동 연동 에이전트",
+            instruction=AGENT_INSTRUCTION,
+            foundationModel=f"anthropic.claude-sonnet-4-5",
+            agentResourceRoleArn=BEDROCK_IAM_ROLE,
+            idleSessionTTLInSeconds=600,
+        )
+
+        agent_id = response["agent"]["agentId"]
+        print(f"   ✓ Agent 생성: {agent_id}")
+        time.sleep(5)  # Agent 생성 안정화 대기
+        return agent_id
+    except bedrock_agent.exceptions.ConflictException:
+        print(f"   ℹ️  생성 중 충돌 발생: {AGENT_NAME}이 이미 존재하므로 ID를 재조회합니다.")
+        pages = bedrock_agent.get_paginator('list_agents').paginate()
+        for page in pages:
+            for agent in page.get('agentSummaries', []):
+                if agent['agentName'] == AGENT_NAME:
+                    return agent['agentId']
+        raise
 
 
 # ── 5단계: Action Group 생성 (Tool Lambda 연결) ───────────────────────────
@@ -254,64 +287,48 @@ def create_action_groups(agent_id: str):
     # Jira + GitHub + Slack을 단일 Action Group으로 묶음
     # (각 Lambda가 apiPath로 분기 처리)
     lambda_arns = [JIRA_LAMBDA_ARN, GITHUB_LAMBDA_ARN, SLACK_LAMBDA_ARN]
+    tool_names = ["Jira", "GitHub", "Slack"]
+
+    # 🔍 기존에 이미 매핑된 Action Group 목록을 먼저 확보합니다.
+    existing_ags = []
+    try:
+        paginator = bedrock_agent.get_paginator('list_agent_action_groups')
+        for page in paginator.paginate(agentId=agent_id, agentVersion="DRAFT"):
+            for ag in page.get('actionGroupSummaries', []):
+                existing_ags.append(ag['actionGroupName'])
+    except Exception as e:
+        print(f"   ⚠️  기존 Action Group 조회 실패(무시하고 매핑 시도): {e}")
 
     for i, lambda_arn in enumerate(lambda_arns):
         if not lambda_arn:
             print(f"   ⚠ Lambda ARN {i+1} 미설정 - 건너뜀")
             continue
 
-        tool_names = ["Jira", "GitHub", "Slack"]
-        response = bedrock_agent.create_agent_action_group(
-            agentId=agent_id,
-            agentVersion="DRAFT",
-            actionGroupName=f"JaredAI-{tool_names[i]}-Tool",
-            description=f"{tool_names[i]} 연동 도구",
-            actionGroupExecutor={"lambda": lambda_arn},
-            apiSchema={
-                "payload": api_spec_content,
-            },
-        )
-        ag_id = response["agentActionGroup"]["actionGroupId"]
-        print(f"   ✓ {tool_names[i]} Action Group: {ag_id}")
-        time.sleep(2)
+        target_ag_name = f"JaredAI-{tool_names[i]}-Tool"
+
+        # 💡 이미 등록된 툴이라면 생성 단계를 패스합니다.
+        if target_ag_name in existing_ags:
+            print(f"   ℹ️  이미 존재하는 Action Group 발견: {target_ag_name} (건너뜀)")
+            continue
+
+        try:
+            response = bedrock_agent.create_agent_action_group(
+                agentId=agent_id,
+                agentVersion="DRAFT",
+                actionGroupName=target_ag_name,
+                description=f"{tool_names[i]} 연동 도구",
+                actionGroupExecutor={"lambda": lambda_arn},
+                apiSchema={
+                    "payload": api_spec_content,
+                },
+            )
+            ag_id = response["agentActionGroup"]["actionGroupId"]
+            print(f"   ✓ {tool_names[i]} Action Group 생성 성공: {ag_id}")
+            time.sleep(2)
+        except bedrock_agent.exceptions.ConflictException:
+            print(f"   ℹ️  {target_ag_name}이 충돌(이미 존재)하므로 건너뜁니다.")
 
 
 # ── 6단계: Knowledge Base 연결 ────────────────────────────────────────────
 def associate_knowledge_base(agent_id: str, kb_id: str):
-    print("\n[6/7] Knowledge Base 연결 중...")
-
-    bedrock_agent.associate_agent_knowledge_base(
-        agentId=agent_id,
-        agentVersion="DRAFT",
-        knowledgeBaseId=kb_id,
-        description="내부 코딩 표준 및 보안 정책 검색",
-        knowledgeBaseState="ENABLED",
-    )
-    print(f"   ✓ KB {kb_id} → Agent {agent_id} 연결 완료")
-
-
-# ── 7단계: Prepare + Alias 생성 ───────────────────────────────────────────
-def prepare_and_alias(agent_id: str) -> str:
-    print("\n[7/7] Agent Prepare 및 Alias 생성 중...")
-
-    # Prepare (변경사항 적용)
-    bedrock_agent.prepare_agent(agentId=agent_id)
-    print("   ✓ Agent Prepare 완료")
-    time.sleep(10)  # Prepare 완료 대기
-
-    # Alias 생성
-    response = bedrock_agent.create_agent_alias(
-        agentId=agent_id,
-        agentAliasName="production",
-        description="JaredAI 운영 환경 Alias",
-        routingConfiguration=[
-            {"agentVersion": "1"},
-        ],
-    )
-    alias_id = response["agentAlias"]["agentAliasId"]
-    print(f"   ✓ Alias 생성: {alias_id}")
-    return alias_id
-
-
-if __name__ == "__main__":
-    setup_all()
+    print("\
